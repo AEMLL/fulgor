@@ -1,0 +1,20 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
+PROJECT(fulgor C)
+
+# Store all executables in bin/
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+
+# Add include directory
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+# Collect your source files
+file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.c)
+
+# Add the executable
+add_executable(app ${SOURCES})
+
+# Tell CMake where to find your custom libraries
+link_directories(${CMAKE_SOURCE_DIR}/lib)
+
+# Dynamically link against the math library
+target_link_libraries(app portaudio rt m asound pthread)
