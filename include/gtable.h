@@ -1,26 +1,28 @@
-#include "wave.h"
+#include <memory>
+#include <vector>
 
-typedef struct t_gtable {
-    double *table;
-    unsigned long length;
-} GTABLE;
+constexpr double PI = (3.1415926535897932);
+constexpr double TWOPI = (2.0 * PI);
 
-typedef struct t_tab_oscil {
-    OSCIL osc;
-    const GTABLE *gtable;
-    double dtablen;
-    double sizeovrsr;
-} OSCILT;
+class GTable {
+public:
+    typedef enum t_wave {ZERO, SINE, TRIANGLE, SQUARE, SAW_UP, SAW_DOWN} Wave;
 
-enum {SAW_DOWN, SAW_UP};
+    GTable(unsigned long length, Wave wave, unsigned long nharms);
 
-GTABLE* new_gtable(unsigned long length);
-void free_gtable(GTABLE** gtable);
-void norm_gtable(GTABLE* gtable);
-GTABLE* new_triangle(unsigned long length, unsigned long nharms);
-GTABLE* new_square(unsigned long length,unsigned long nharms);
-GTABLE* new_saw(unsigned long length,unsigned long nharms, int up);
+    void new_zeros(unsigned long length);
+    void new_sine(unsigned long length);
+    void new_triangle(unsigned long length, unsigned long nharms);
+    void new_square(unsigned long length, unsigned long nharms);
+    void new_saw(unsigned long length, unsigned long nharms, int up);
+    void norm();
+    void resize(unsigned long length);
 
-OSCILT* new_oscilt(double srate, const GTABLE* gtable, double phase);
-double tabtick(OSCILT* p_osc, double freq);
-double tabitick(OSCILT* p_osc, double freq);
+    unsigned long length();
+    double get(unsigned long index);
+    void set(unsigned long index, double val);
+
+private:
+    std::vector<double> _table;
+    unsigned long _length;
+};

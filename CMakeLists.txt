@@ -1,5 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
-PROJECT(fulgor C)
+PROJECT(fulgor)
 
 # Store all executables in bin/
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -8,7 +8,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Collect your source files
-file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.c)
+file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
 # Add the executable
 add_executable(app ${SOURCES})
@@ -18,3 +18,6 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 
 # Dynamically link against the math library
 target_link_libraries(app portaudio rt m asound pthread)
+
+# Link the libremidi library
+# target_link_libraries(app PRIVATE libremidi)
