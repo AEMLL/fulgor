@@ -103,6 +103,7 @@ void noteOn(int noteNumber, int velocity)
         gAmplitude = powf(10.0, decibels / 20.0);
     
         // TODO: trigger the ADSR envelopes
+        gAmplitudeADSR.trigger();
     }
 }
 
@@ -130,7 +131,7 @@ void noteOff(int noteNumber)
     }
     
     if(gActiveNoteCount == 0) {
-
+        gAmplitudeADSR.release();
     }
     else if(activeNoteChanged) {
         // Update the frequency but don't retrigger
@@ -156,62 +157,54 @@ int render(const void *inputBuffer,
     (void) statusFlags;
     (void) inputBuffer;
 
-    // noteOn(69,120);
-
     libremidi::message message;
     while (q.try_dequeue(message)) {
         std::cout << "msg received" << std::endl;
         std::cout << message << std::endl;
+        
+        unsigned char messageType = (message[0] & 0xF0) >> 4;
+        if (messageType == 0x9) { // Note On
+            int noteNumber = message[1];
+            int velocity = message[2];
 
-        int noteNumber = message[1]; // bit mask is redundant as high bit is 0
-        int velocity = message[2];
-
-        std::cout << "noteNumber =" << noteNumber << std::endl;
-
-        if (velocity == 0) {
+            std::cout << "noteNumber =" << noteNumber << std::endl;
+            
+            if (velocity == 0) {
+                noteOff(noteNumber);
+            } else {
+                noteOn(noteNumber, velocity);
+            }
+        } else if (messageType == 0x8) { // Note Off
+            int noteNumber = message[1];
+            
             noteOff(noteNumber);
-        } else {
-            noteOn(noteNumber, velocity);
+        } else if (messageType == 0xB) {
+            unsigned char controller = message[1];
+            float value = message[2] / 127.0; 
+
+            switch (controller) {
+                case (0x14):
+                    gAmplitudeADSR.setAttackTime(value);
+                    break;
+                case (0x15):
+                    gAmplitudeADSR.setDecayTime(value);
+                    break;
+                case (0x16):
+                    gAmplitudeADSR.setSustainLevel(value);
+                    break;
+                case (0x17):
+                    gAmplitudeADSR.setReleaseTime(value);
+                    break;
+            }
         }
 
         printf("Frequency: %f, Amplitude: %f\n", gOscillator.getFrequency(), gAmplitude);
     }
 
-    // while(gMidi.getParser()->numAvailableMessages() > 0) {
-	// 	MidiChannelMessage message;
-	// 	message = gMidi.getParser()->getNextChannelMessage();
-	// 	message.prettyPrint();		// Print the message data
-		
-	// 	// A MIDI "note on" message type might actually hold a real
-	// 	// note onset (e.g. key press), or it might hold a note off (key release).
-	// 	// The latter is signified by a velocity of 0.
-	// 	if(message.getType() == kmmNoteOn) {
-	// 		int noteNumber = message.getDataByte(0);
-	// 		int velocity = message.getDataByte(1);
-			
-	// 		// Velocity of 0 is really a note off
-	// 		if(velocity == 0) {
-	// 			noteOff(noteNumber);
-	// 		}
-	// 		else {
-	// 			noteOn(noteNumber, velocity);
-	// 		}
-			
-	// 		rt_printf("Frequency: %f, Amplitude: %f\n", gOscillator.getFrequency(), gAmplitude);
-	// 	}
-	// 	else if(message.getType() == kmmNoteOff) {
-	// 		// We can also encounter the "note off" message type which is the same
-	// 		// as "note on" with a velocity of 0.
-	// 		int noteNumber = message.getDataByte(0);
-			
-	// 		noteOff(noteNumber);
-	// 	}
-	// }
-
     // Now calculate the audio for this block
 	for(unsigned int n = 0; n < framesPerBuffer; n++) {
 		// TODO: get the next value from the ADSR envelope, scaled by the global amplitude
-    	float amplitude = gAmplitude;
+    	float amplitude = gAmplitude * gAmplitudeADSR.process();
     	
 		// TODO: set the filter frequency based on its ADSR envelope -- see Lecture 14
 		gFilter.setFrequency(10000.0);
