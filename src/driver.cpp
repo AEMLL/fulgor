@@ -1,55 +1,20 @@
-/** @file paex_sine.c
-    @ingroup examples_src
-    @brief Play a sine wave for several seconds.
-    @author Ross Bencina <rossb@audiomulch.com>
-    @author Phil Burk <philburk@softsynth.com>
-*/
-/*
- * $Id: paex_sine.c 1752 2011-09-08 03:21:55Z philburk $
- *
- * This program uses the PortAudio Portable Audio Library.
- * For more information see: http://www.portaudio.com/
- * Copyright (c) 1999-2000 Ross Bencina and Phil Burk
- *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files
- * (the "Software"), to deal in the Software without restriction,
- * including without limitation the rights to use, copy, modify, merge,
- * publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
-/*
- * The text above constitutes the entire PortAudio license; however,
- * the PortAudio community also makes the following non-binding requests:
- *
- * Any person wishing to distribute modifications to the Software is
- * requested to send the modifications to the original developer so that
- * they can be incorporated into the canonical version. It is also
- * requested that these non-binding requests be included along with the
- * license above.
- */
+#include <iostream>
 #include <stdio.h>
 #include <math.h>
+
+#include <libremidi/libremidi.hpp>
 #include "portaudio.h"
-#include "oscillator.h"
+#include <readerwriterqueue/readerwriterqueue.h>
+
+#include "ADSR.h"
+#include "Filter.h"
+#include "Wavetable.h"
 #include "midiutils.h"
 
-#define NUM_SECONDS   (5)
+#define NUM_SECONDS   (60)
 #define SAMPLE_RATE   (44100)
 #define FRAMES_PER_BUFFER  (64)
+#define NUM_AUDIO_CHANNELS (2)
 
 #ifndef M_PI
 #define M_PI  (3.14159265)
@@ -57,213 +22,310 @@
 
 #define TABLE_SIZE   (200)
 
-class PaStreamHandler
-{
-public:
-    PaStreamHandler(GTableOscillator *oscillator): osc(oscillator) {
-    }
-
-    bool open(PaDeviceIndex index)
-    {
-        PaStreamParameters outputParameters;
-
-        outputParameters.device = index;
-        if (outputParameters.device == paNoDevice) {
-            return false;
-        }
-
-        const PaDeviceInfo* pInfo = Pa_GetDeviceInfo(index);
-        if (pInfo != 0)
-        {
-            printf("Output device name: '%s'\r", pInfo->name);
-        }
-
-        outputParameters.channelCount = 2;       /* stereo output */
-        outputParameters.sampleFormat = paFloat32; /* 32 bit floating point output */
-        outputParameters.suggestedLatency = Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
-        outputParameters.hostApiSpecificStreamInfo = NULL;
-
-        PaError err = Pa_OpenStream(
-            &stream,
-            NULL, /* no input */
-            &outputParameters,
-            SAMPLE_RATE,
-            paFramesPerBufferUnspecified,
-            paClipOff,      /* we won't output out of range samples so don't bother clipping them */
-            &PaStreamHandler::paCallback,
-            this            /* Using 'this' for userData so we can cast to Sine* in paCallback method */
-            );
-
-        if (err != paNoError)
-        {
-            /* Failed to open stream to device !!! */
-            return false;
-        }
-
-        err = Pa_SetStreamFinishedCallback( stream, &PaStreamHandler::paStreamFinished );
-
-        if (err != paNoError)
-        {
-            Pa_CloseStream( stream );
-            stream = 0;
-
-            return false;
-        }
-
-        return true;
-    }
-
-    bool close()
-    {
-        if (stream == 0)
-            return false;
-
-        PaError err = Pa_CloseStream( stream );
-        stream = 0;
-
-        return (err == paNoError);
-    }
-
-
-    bool start()
-    {
-        if (stream == 0)
-            return false;
-
-        PaError err = Pa_StartStream( stream );
-
-        return (err == paNoError);
-    }
-
-    bool stop()
-    {
-        if (stream == 0)
-            return false;
-
-        PaError err = Pa_StopStream( stream );
-
-        return (err == paNoError);
-    }
-
-private:
-    /* The instance callback, where we have access to every method/variable in object of class Sine */
-    int paCallbackMethod(const void *inputBuffer, void *outputBuffer,
-        unsigned long framesPerBuffer,
-        const PaStreamCallbackTimeInfo* timeInfo,
-        PaStreamCallbackFlags statusFlags)
-    {
-        float *out = (float*)outputBuffer;
-        unsigned long i;
-        double val;
-
-        (void) timeInfo; /* Prevent unused variable warnings. */
-        (void) statusFlags;
-        (void) inputBuffer;
-
-        for( i=0; i<framesPerBuffer; i++ )
-        {
-            val = osc->tabitick(MIDIUtils::midi_to_hz(69));
-            *out++ = val;
-            *out++ = val;
-        }
-
-        return paContinue;
-
-    }
-
-    /* This routine will be called by the PortAudio engine when audio is needed.
-    ** It may called at interrupt level on some machines so don't do anything
-    ** that could mess up the system like calling malloc() or free().
-    */
-    static int paCallback( const void *inputBuffer, void *outputBuffer,
-        unsigned long framesPerBuffer,
-        const PaStreamCallbackTimeInfo* timeInfo,
-        PaStreamCallbackFlags statusFlags,
-        void *userData )
-    {
-        /* Here we cast userData to Sine* type so we can call the instance method paCallbackMethod, we can do that since
-           we called Pa_OpenStream with 'this' for userData */
-        return ((PaStreamHandler*)userData)->paCallbackMethod(inputBuffer, outputBuffer,
-            framesPerBuffer,
-            timeInfo,
-            statusFlags);
-    }
-
-
-    void paStreamFinishedMethod()
-    {
-        printf( "Stream Completed: %s\n", message );
-    }
-
-    /*
-     * This routine is called by portaudio when playback is done.
-     */
-    static void paStreamFinished(void* userData)
-    {
-        return ((PaStreamHandler*)userData)->paStreamFinishedMethod();
-    }
-
-    PaStream *stream;
-    GTableOscillator *osc;
-    char message[20];
-};
-
-class ScopedPaHandler
-{
-public:
-    ScopedPaHandler()
-        : _result(Pa_Initialize())
-    {
-    }
-    ~ScopedPaHandler()
-    {
-        if (_result == paNoError)
-        {
-            Pa_Terminate();
-        }
-    }
-
-    PaError result() const { return _result; }
-
-private:
-    PaError _result;
-};
-
-
 /*******************************************************************/
-int main(void);
-int main(void)
+
+// REFACTOR
+
+
+typedef struct {
+    char message[20];
+} UserData;
+
+// g prefix denotes global
+
+// readerwriterqueue
+moodycamel::ReaderWriterQueue<libremidi::message> q(16);
+
+// Oscillator and Filter objects
+Wavetable gOscillator;
+Filter gFilter;
+
+// ADSR objects
+ADSR gAmplitudeADSR, gFilterADSR;
+float gAmplitude = 0.0;
+
+// MIDI
+const int kMaxActiveNotes = 16;
+int gActiveNotes[kMaxActiveNotes];
+int gActiveNoteCount = 0;
+
+
+// setup
+bool setup(void *userData) {
+    // midi setup
+
+    // wavetable
+    std::vector<float> wavetable;
+	const unsigned int wavetableSize = 512;
+		
+	// Populate a buffer with the first 64 harmonics of a sawtooth wave
+	wavetable.resize(wavetableSize);
+	for(unsigned int n = 0; n < wavetable.size(); n++) {
+		wavetable[n] = 0;
+		for(unsigned int harmonic = 1; harmonic <= 48; harmonic++) {
+			wavetable[n] += 0.5 * sinf(2.0 * M_PI * (float)harmonic * (float)n / 
+								 (float)wavetable.size()) / (float)harmonic;
+		}
+	}
+
+    // Initialise the wavetable, passing the sample rate and the buffer
+	gOscillator.setup(SAMPLE_RATE, wavetable);
+
+	// Initialise the filter
+	gFilter.setSampleRate(SAMPLE_RATE);
+
+	// Initialise the ADSR objects
+	gAmplitudeADSR.setSampleRate(SAMPLE_RATE);
+	gFilterADSR.setSampleRate(SAMPLE_RATE);
+    
+    return true;
+}
+
+auto midiCallback = [](const libremidi::message& message) {
+    std::cout << message << std::endl;
+    q.try_enqueue(message);
+};
+
+// MIDI note on received
+void noteOn(int noteNumber, int velocity) 
 {
-    GTable gtable(TABLE_SIZE,GTable::SAW_UP, 10);
-    GTableOscillator osc(SAMPLE_RATE, &gtable, 0.0);
-    PaStreamHandler sh(&osc);
+    // Check if we have any note slots left
+    if(gActiveNoteCount < kMaxActiveNotes) {
+        // Keep track of this note, then play it
+        gActiveNotes[gActiveNoteCount++] = noteNumber;
+        
+        // Map note number to frequency
+        float frequency = powf(2.0, (noteNumber - 69)/12.0) * 440.0;
+        gOscillator.setFrequency(frequency);
+        
+        // Map velocity to gAmplitude on a decibel scale
+        float decibels = ((velocity/127.0)*40.0)-40.0;
+        gAmplitude = powf(10.0, decibels / 20.0);
+    
+        // TODO: trigger the ADSR envelopes
+    }
+}
+
+// MIDI note off received
+void noteOff(int noteNumber)
+{
+    bool activeNoteChanged = false;
+    
+    // TODO: work out when you should release the ADSR envelopes within this function!
+    
+    // Go through all the active notes and remove any with this number
+    for(int i = gActiveNoteCount - 1; i >= 0; i--) {
+        if(gActiveNotes[i] == noteNumber) {
+            // Found a match: is it the most recent note?
+            if(i == gActiveNoteCount - 1) {
+                activeNoteChanged = true;
+            }
+    
+            // Move all the later notes back in the list
+            for(int j = i; j < gActiveNoteCount - 1; j++) {
+                gActiveNotes[j] = gActiveNotes[j + 1];
+            }
+            gActiveNoteCount--;
+        }
+    }
+    
+    if(gActiveNoteCount == 0) {
+
+    }
+    else if(activeNoteChanged) {
+        // Update the frequency but don't retrigger
+        int mostRecentNote = gActiveNotes[gActiveNoteCount - 1];
+        
+        float frequency = powf(2.0, (mostRecentNote - 69)/12.0) * 440.0;
+        gOscillator.setFrequency(frequency);
+    }
+}
+
+// callback function -> render
+int render(const void *inputBuffer,
+    void *outputBuffer, 
+    unsigned long framesPerBuffer,
+    const PaStreamCallbackTimeInfo* timeInfo,
+    PaStreamCallbackFlags statusFlags,
+    void *userData)
+{
+    float *buffer = (float*)outputBuffer;
+    unsigned long i;
+        
+    (void) timeInfo; /* Prevent unused variable warnings. */
+    (void) statusFlags;
+    (void) inputBuffer;
+
+    // noteOn(69,120);
+
+    libremidi::message message;
+    while (q.try_dequeue(message)) {
+        std::cout << "msg received" << std::endl;
+        std::cout << message << std::endl;
+
+        int noteNumber = message[1]; // bit mask is redundant as high bit is 0
+        int velocity = message[2];
+
+        std::cout << "noteNumber =" << noteNumber << std::endl;
+
+        if (velocity == 0) {
+            noteOff(noteNumber);
+        } else {
+            noteOn(noteNumber, velocity);
+        }
+
+        printf("Frequency: %f, Amplitude: %f\n", gOscillator.getFrequency(), gAmplitude);
+    }
+
+    // while(gMidi.getParser()->numAvailableMessages() > 0) {
+	// 	MidiChannelMessage message;
+	// 	message = gMidi.getParser()->getNextChannelMessage();
+	// 	message.prettyPrint();		// Print the message data
+		
+	// 	// A MIDI "note on" message type might actually hold a real
+	// 	// note onset (e.g. key press), or it might hold a note off (key release).
+	// 	// The latter is signified by a velocity of 0.
+	// 	if(message.getType() == kmmNoteOn) {
+	// 		int noteNumber = message.getDataByte(0);
+	// 		int velocity = message.getDataByte(1);
+			
+	// 		// Velocity of 0 is really a note off
+	// 		if(velocity == 0) {
+	// 			noteOff(noteNumber);
+	// 		}
+	// 		else {
+	// 			noteOn(noteNumber, velocity);
+	// 		}
+			
+	// 		rt_printf("Frequency: %f, Amplitude: %f\n", gOscillator.getFrequency(), gAmplitude);
+	// 	}
+	// 	else if(message.getType() == kmmNoteOff) {
+	// 		// We can also encounter the "note off" message type which is the same
+	// 		// as "note on" with a velocity of 0.
+	// 		int noteNumber = message.getDataByte(0);
+			
+	// 		noteOff(noteNumber);
+	// 	}
+	// }
+
+    // Now calculate the audio for this block
+	for(unsigned int n = 0; n < framesPerBuffer; n++) {
+		// TODO: get the next value from the ADSR envelope, scaled by the global amplitude
+    	float amplitude = gAmplitude;
+    	
+		// TODO: set the filter frequency based on its ADSR envelope -- see Lecture 14
+		gFilter.setFrequency(10000.0);
+    	
+    	// Calculate the output
+    	float out = gOscillator.process() * amplitude;
+    	out = 0.5 * gFilter.process(out);
+    	
+    	for(unsigned int channel = 0; channel < NUM_AUDIO_CHANNELS; channel++) {
+			// Write the sample to every audio output channel
+    		*buffer++ = out;
+    	}
+    }
+
+    return paContinue;
+        
+}
+
+// stream finished -> clean-up
+static void StreamFinished( void* userData )
+{
+    UserData *data = (UserData *) userData;
+    printf( "Stream Completed: %s\n", data->message );
+}
+
+int main(void)
+    {
+    PaStreamParameters outputParameters;
+    PaStream *stream;
+    PaError err;
+    UserData data;
+    int i;
+
+    libremidi::observer obs;
+    auto inputs = obs.get_input_ports();
+    auto outputs = obs.get_output_ports();
+
+    if (inputs.size() == 0)
+    {
+        std::cerr << "No available input port.\n";
+        return -1;
+    }
+    if (outputs.size() == 0)
+    {
+        std::cerr << "No available output port.\n";
+        return -1;
+    }
+
+    libremidi::midi_in midiin{ 
+        libremidi::input_configuration{ .on_message = midiCallback },
+        libremidi::midi_in_configuration_for(obs)
+    };
+
+    midiin.open_port(inputs[0]);
+    if (!midiin.is_port_connected())
+    {
+        std::cerr << "Could not connect to midi in\n";
+        return -1;
+    }
 
     printf("PortAudio Test: output sine wave. SR = %d, BufSize = %d\n", SAMPLE_RATE, FRAMES_PER_BUFFER);
 
-    ScopedPaHandler paInit;
-    if( paInit.result() != paNoError ) goto error;
+    err = Pa_Initialize();
+    if( err != paNoError ) goto error;
 
-    
-
-    if (sh.open(Pa_GetDefaultOutputDevice()))
-    {
-        if (sh.start())
-        {
-            printf("Play for %d seconds.\n", NUM_SECONDS );
-            Pa_Sleep( NUM_SECONDS * 1000 );
-
-            sh.stop();
-        }
-
-        sh.close();
+    outputParameters.device = Pa_GetDefaultOutputDevice(); /* default output device */
+    if (outputParameters.device == paNoDevice) {
+        fprintf(stderr,"Error: No default output device.\n");
+        goto error;
     }
 
+    outputParameters.channelCount = 2;       /* stereo output */
+    outputParameters.sampleFormat = paFloat32; /* 32 bit floating point output */
+    outputParameters.suggestedLatency = Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
+    outputParameters.hostApiSpecificStreamInfo = NULL;
+
+    setup(nullptr);
+
+    err = Pa_OpenStream(
+              &stream,
+              NULL, /* no input */
+              &outputParameters,
+              SAMPLE_RATE,
+              FRAMES_PER_BUFFER,
+              paClipOff,      /* we won't output out of range samples so don't bother clipping them */
+              render,
+              &data);
+    if( err != paNoError ) goto error;
+
+    sprintf( data.message, "No Message" );
+    err = Pa_SetStreamFinishedCallback( stream, &StreamFinished );
+    if( err != paNoError ) goto error;
+
+    err = Pa_StartStream( stream );
+    if( err != paNoError ) goto error;
+
+    printf("Play for %d seconds.\n", NUM_SECONDS );
+    Pa_Sleep( NUM_SECONDS * 1000 );
+
+    err = Pa_StopStream( stream );
+    if( err != paNoError ) goto error;
+
+    err = Pa_CloseStream( stream );
+    if( err != paNoError ) goto error;
+
+    Pa_Terminate();
     printf("Test finished.\n");
-    return paNoError;
+
+    return err;
 
 error:
+    Pa_Terminate();
     fprintf( stderr, "An error occurred while using the portaudio stream\n" );
-    fprintf( stderr, "Error number: %d\n", paInit.result() );
-    fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( paInit.result() ) );
-    return 1;
-}
+    fprintf( stderr, "Error number: %d\n", err );
+    fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( err ) );
+    return err;
+    }

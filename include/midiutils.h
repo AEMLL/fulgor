@@ -1,9 +1,19 @@
-#include <math.h>
+#pragma once
 
-namespace MIDIUtils {
+#include <libremidi/libremidi.hpp>
 
-static double midi_to_hz(unsigned long midi_note) {
-    return 440 * pow(2,(double)(midi_note - 69) / 12);
-}
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
 
+inline std::ostream& operator<<(std::ostream& s, const libremidi::message& message)
+{
+    auto nBytes = message.size();
+    s << "[ ";
+    for (auto i = 0U; i < nBytes; i++)
+        s << std::hex << (int)message[i] << std::dec << " ";
+    s << "]";
+    if (nBytes > 0)
+        s << " ; stamp = " << message.timestamp;
+    return s;
 }
