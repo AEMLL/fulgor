@@ -7,11 +7,12 @@
 #include <readerwriterqueue/readerwriterqueue.h>
 
 #include "ADSR.h"
+#include "Delay.h"
 #include "Filter.h"
 #include "Wavetable.h"
 #include "midiutils.h"
 
-#define NUM_SECONDS   (60)
+#define NUM_SECONDS   (300)
 #define SAMPLE_RATE   (44100)
 #define FRAMES_PER_BUFFER  (64)
 #define NUM_AUDIO_CHANNELS (2)
@@ -39,6 +40,7 @@ moodycamel::ReaderWriterQueue<libremidi::message> q(16);
 // Oscillator and Filter objects
 Wavetable gOscillator;
 Filter gFilter;
+Delay gDelay;
 
 // ADSR objects
 ADSR gAmplitudeADSR, gFilterADSR;
@@ -73,6 +75,12 @@ bool setup(void *userData) {
 
 	// Initialise the filter
 	gFilter.setSampleRate(SAMPLE_RATE);
+
+    // Initialise the echo
+    gDelay.setSampleRate(SAMPLE_RATE);
+    gDelay.setDelay(0.125);
+    gDelay.setLevel(0.7);
+    
 
 	// Initialise the ADSR objects
 	gAmplitudeADSR.setSampleRate(SAMPLE_RATE);
@@ -207,11 +215,13 @@ int render(const void *inputBuffer,
     	float amplitude = gAmplitude * gAmplitudeADSR.process();
     	
 		// TODO: set the filter frequency based on its ADSR envelope -- see Lecture 14
-		gFilter.setFrequency(10000.0);
+		gFilter.setFrequency(1000.0);
+        gFilter.setQ(2);
     	
     	// Calculate the output
     	float out = gOscillator.process() * amplitude;
     	out = 0.5 * gFilter.process(out);
+        out = gDelay.process(out);
     	
     	for(unsigned int channel = 0; channel < NUM_AUDIO_CHANNELS; channel++) {
 			// Write the sample to every audio output channel
