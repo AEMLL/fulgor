@@ -5,17 +5,15 @@ class Delay {
 public:
     Delay();
 
-    Delay(float sampleRate, float seconds);
+    Delay(float sampleRate, float maxDelay, bool useInterpolation);
 
     void setSampleRate(float rate);
 
-    void setDelay(float seconds);
+    void setMaxDelay(float delay);
     
     void setLevel(float level);
 
-    unsigned long getLength();
-
-    float process(float input);
+    float process(float input, float delay);
     
     ~Delay();
 
@@ -23,7 +21,7 @@ private:
     RingBuffer ring_;
     float sampleRate_;
     float level_;
-    unsigned long delay_;
-    bool ready_;
+    float maxDelay_;
+    bool useInterpolation_;
     
 };

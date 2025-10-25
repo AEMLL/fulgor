@@ -1,14 +1,14 @@
+#include <cmath>
 #include "Delay.h"
 
-Delay::Delay() : Delay(44100.0, 0.0) {}
+Delay::Delay() : Delay(44100.0, 0.0, true) {}
 
-Delay::Delay(float sampleRate, float seconds) {
+Delay::Delay(float sampleRate, float maxDelay, bool useInterpolation) {
     setSampleRate(sampleRate);
-    setDelay(seconds);
+    setMaxDelay(maxDelay);
 
     level_ = 0;
-
-    // ready_ = false;
+    useInterpolation_ = useInterpolation;
 }
 
 void Delay::setSampleRate(float rate) {
@@ -21,20 +21,37 @@ void Delay::setLevel(float level) {
     }
 }
 
-unsigned long Delay::getLength() {
-    return ring_.getCapacity();
+void Delay::setMaxDelay(float maxDelay) {
+    if (maxDelay >= 0) {
+        maxDelay_ = maxDelay;
+        ring_.resize(ceilf(maxDelay * sampleRate_)+1);
+    }
 }
 
-void Delay::setDelay(float seconds) {
-    if (seconds >= 0) {
-        delay_ = (unsigned long)(seconds * sampleRate_);
+float Delay::process(float input, float delay) {
+    if (delay < 0) 
+    return input;
+    
+    if (delay > maxDelay_)
+    return input;
+    
+    float out;
+    float readPointer = delay * sampleRate_;
+    
+    if (useInterpolation_) {
+        int indexBelow = floorf(readPointer);
+        int indexAbove = ceilf(readPointer);
+
+        float fractionAbove = readPointer - indexBelow;
+		float fractionBelow = 1.0 - fractionAbove;
+
+        out = fractionBelow * ring_[indexBelow] +
+	    	  fractionAbove * ring_[indexAbove];
+    } else {
+        out = ring_[(int)readPointer];
     }
 
-    ring_.resize(delay_+1);
-}
-
-float Delay::process(float input) {
-    float out = ring_[delay_] * level_ + input;
+    out = out * level_ + input;
     ring_.push(out);
     return out;
 }

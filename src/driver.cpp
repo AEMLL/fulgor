@@ -78,7 +78,7 @@ bool setup(void *userData) {
 
     // Initialise the echo
     gDelay.setSampleRate(SAMPLE_RATE);
-    gDelay.setDelay(0.125);
+    gDelay.setMaxDelay(0.125);
     gDelay.setLevel(0.7);
     
 
@@ -221,7 +221,7 @@ int render(const void *inputBuffer,
     	// Calculate the output
     	float out = gOscillator.process() * amplitude;
     	out = 0.5 * gFilter.process(out);
-        out = gDelay.process(out);
+        out = gDelay.process(out, 0.125);
     	
     	for(unsigned int channel = 0; channel < NUM_AUDIO_CHANNELS; channel++) {
 			// Write the sample to every audio output channel
