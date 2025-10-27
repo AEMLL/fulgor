@@ -10,6 +10,8 @@ public:
     void setSampleRate(float rate);
 
     void setMaxDelay(float delay);
+
+    float getMaxDelay();
     
     void setLevel(float level);
 

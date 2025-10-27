@@ -1,5 +1,7 @@
 #include <vector>
 
+#pragma once
+
 class RingBuffer {
 private:
     std::vector<float> buffer_;

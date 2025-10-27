@@ -8,6 +8,7 @@
 
 #include "ADSR.h"
 #include "Chorus.h"
+#include "Delay.h"
 #include "Filter.h"
 #include "Wavetable.h"
 #include "midiutils.h"
@@ -41,6 +42,9 @@ moodycamel::ReaderWriterQueue<libremidi::message> q(16);
 Wavetable gOscillator;
 Filter gFilter;
 Chorus gChorus;
+
+Delay gDelay;
+float gDelayNow = 0.0;
 
 // ADSR objects
 ADSR gAmplitudeADSR, gFilterADSR;
@@ -81,9 +85,14 @@ bool setup(void *userData) {
 	// Initialise the filter
 	gFilter.setSampleRate(SAMPLE_RATE);
 
-    // Initialise the echo
+    // Initialise the chorus
     gChorus.setSampleRate(SAMPLE_RATE);
     gChorus.setDepth(0.8);
+
+    // Initialise the echo
+    gDelay.setSampleRate(SAMPLE_RATE);
+    gDelay.setMaxDelay(0.125);
+    gDelay.setLevel(0.4);
     
 
 	// Initialise the ADSR objects
@@ -191,17 +200,22 @@ int render(const void *inputBuffer,
             float value = message[2] / 127.0; 
 
             switch (controller) {
-                case (0x14):
+                case (0x15):
                     gAmplitudeADSR.setAttackTime(value);
                     break;
-                case (0x15):
+                case (0x16):
                     gAmplitudeADSR.setDecayTime(value);
                     break;
-                case (0x16):
+                case (0x17):
                     gAmplitudeADSR.setSustainLevel(value);
                     break;
-                case (0x17):
+                case (0x18):
                     gAmplitudeADSR.setReleaseTime(value);
+                    break;
+                case (0x19):
+                    gDelayNow = value * gDelay.getMaxDelay();
+                    break;
+                default:
                     break;
             }
         }
@@ -222,6 +236,7 @@ int render(const void *inputBuffer,
     	float out = gOscillator.process() * amplitude;
     	out = 0.5 * gFilter.process(out);
         out = gChorus.process(out);
+        out = gDelay.process(out, gDelayNow);
     	
     	for(unsigned int channel = 0; channel < NUM_AUDIO_CHANNELS; channel++) {
 			// Write the sample to every audio output channel

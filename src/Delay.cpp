@@ -28,6 +28,10 @@ void Delay::setMaxDelay(float maxDelay) {
     }
 }
 
+float Delay::getMaxDelay() {
+    return maxDelay_;
+}
+
 float Delay::process(float input, float delay) {
     if (delay < 0) 
     return input;

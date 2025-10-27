@@ -27,6 +27,10 @@ ADSR::ADSR()
 	state_ = StateOff;
 }
 
+ADSR::ADSR(float sampleRate): ADSR() {
+	setSampleRate(sampleRate);
+}
+
 // Set the sample rate, used for all calculations
 void ADSR::setSampleRate(float rate) 
 {
