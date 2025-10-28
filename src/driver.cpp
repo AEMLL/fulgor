@@ -87,9 +87,9 @@ bool setup(void *userData) {
 
     // Initialise the chorus
     gChorus.setSampleRate(SAMPLE_RATE);
-    gChorus.setDepth(0.8);
+    gChorus.setDepth(0.6);
 
-    // Initialise the echo
+    // Initialise the delay
     gDelay.setSampleRate(SAMPLE_RATE);
     gDelay.setMaxDelay(0.125);
     gDelay.setLevel(0.4);
@@ -201,19 +201,25 @@ int render(const void *inputBuffer,
 
             switch (controller) {
                 case (0x15):
-                    gAmplitudeADSR.setAttackTime(value);
+                    gAmplitudeADSR.setAttackTime(0.001+value);
                     break;
                 case (0x16):
-                    gAmplitudeADSR.setDecayTime(value);
+                    gAmplitudeADSR.setDecayTime(0.001+value);
                     break;
                 case (0x17):
-                    gAmplitudeADSR.setSustainLevel(value);
+                    gAmplitudeADSR.setSustainLevel(0.001+value);
                     break;
                 case (0x18):
-                    gAmplitudeADSR.setReleaseTime(value);
+                    gAmplitudeADSR.setReleaseTime(0.001+value);
                     break;
                 case (0x19):
                     gDelayNow = value * gDelay.getMaxDelay();
+                    break;
+                case (0x1a):
+                    gFilter.setFrequency(1000 + value * 11000.0);
+                    break;
+                case (0x1b):
+                    gFilter.setQ(0.5 + value * 19.5);
                     break;
                 default:
                     break;
@@ -229,8 +235,8 @@ int render(const void *inputBuffer,
     	float amplitude = gAmplitude * gAmplitudeADSR.process();
     	
 		// TODO: set the filter frequency based on its ADSR envelope -- see Lecture 14
-		gFilter.setFrequency(1000.0);
-        gFilter.setQ(2);
+		// gFilter.setFrequency(1000.0);
+        // gFilter.setQ(2);
     	
     	// Calculate the output
     	float out = gOscillator.process() * amplitude;
