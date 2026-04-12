@@ -61,3 +61,6 @@ CMakeFiles/*
 Makefile
 .vscode/
 
+# Build directory
+build/
+
