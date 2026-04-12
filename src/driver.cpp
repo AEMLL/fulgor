@@ -10,6 +10,7 @@
 #include "Chorus.h"
 #include "Delay.h"
 #include "Filter.h"
+#include "SchroederReverb.h"
 #include "Wavetable.h"
 #include "midiutils.h"
 
@@ -45,6 +46,8 @@ Chorus gChorus;
 
 Delay gDelay;
 float gDelayNow = 0.0;
+
+SchroederReverb gReverb;
 
 // ADSR objects
 ADSR gAmplitudeADSR, gFilterADSR;
@@ -221,6 +224,9 @@ int render(const void *inputBuffer,
                 case (0x1b):
                     gFilter.setQ(0.5 + value * 19.5);
                     break;
+                case (0x1c):
+                    gReverb.setAmount(value * 0.5);
+                    break;
                 default:
                     break;
             }
@@ -243,6 +249,7 @@ int render(const void *inputBuffer,
     	out = 0.5 * gFilter.process(out);
         out = gChorus.process(out);
         out = gDelay.process(out, gDelayNow);
+        out = gReverb.process(out);
     	
     	for(unsigned int channel = 0; channel < NUM_AUDIO_CHANNELS; channel++) {
 			// Write the sample to every audio output channel
