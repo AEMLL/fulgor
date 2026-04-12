@@ -1,0 +1,3 @@
+[submodule "thirdparty/libremidi"]
+	path = thirdparty/libremidi
+	url = git@github.com:AEMLL/libremidi.git
