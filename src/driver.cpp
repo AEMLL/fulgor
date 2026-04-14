@@ -10,6 +10,7 @@
 #include "Chorus.h"
 #include "Delay.h"
 #include "Filter.h"
+#include "FFT.h"
 #include "SchroederReverb.h"
 #include "Wavetable.h"
 #include "midiutils.h"
