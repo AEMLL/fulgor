@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Comb.h"
 #include "SchroederAllpass.h"
 
