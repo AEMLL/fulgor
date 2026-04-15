@@ -1,19 +1,6 @@
-/*
- ____  _____ _        _    
-| __ )| ____| |      / \   
-|  _ \|  _| | |     / _ \  
-| |_) | |___| |___ / ___ \ 
-|____/|_____|_____/_/   \_\
-
-http://bela.io
-
-C++ Real-Time Audio Programming with Bela - Lecture 15: MIDI part 1
-*/
-
-// Wavetable.cpp: file for implementing the wavetable oscillator class
+#include "Wavetable.h"
 
 #include <cmath>
-#include "Wavetable.h"
 
 // Constructor taking arguments for sample rate and table data
 Wavetable::Wavetable(float sampleRate, std::vector<float>& table, bool useInterpolation) {

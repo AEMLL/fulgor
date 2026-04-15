@@ -4,24 +4,40 @@ PROJECT(fulgor)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-### System libraries ###
-
-# fftw3
-find_library(FFTW3_LIB fftw3 REQUIRED)
-find_path(FFTW3_INCLUDE fftw3.h REQUIRED)
-
-### Third party ###
+# Third party ##########################################################
 
 # libremidi
 add_subdirectory(thirdparty/libremidi)
 
-### Local libraries ###
+# Local libraries ######################################################
 
-# FFT
-add_library(FFT STATIC lib/FFT/FFT.cpp)
-target_include_directories(FFT PUBLIC  ${CMAKE_SOURCE_DIR}/lib/FFT PRIVATE ${FFTW3_INCLUDE})
-target_link_libraries(FFT PRIVATE ${FFTW3_LIB})
+file(GLOB LIB_DIRS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/lib/*)
 
+function(add_internal_library LIB_NAME)
+    add_library(${LIB_NAME} SHARED
+        lib/${LIB_NAME}/${LIB_NAME}.cpp
+    )
+    target_include_directories(${LIB_NAME}
+        PUBLIC ${CMAKE_SOURCE_DIR}/lib/${LIB_NAME}
+    )
+endfunction()
+
+foreach(LIB_DIR ${LIB_DIRS})
+    if(IS_DIRECTORY ${LIB_DIR})
+        get_filename_component(LIB_NAME ${LIB_DIR} NAME)
+        add_internal_library(${LIB_NAME})
+    endif()
+endforeach()
+
+foreach(LIB_DIR ${LIB_DIRS})
+    if(IS_DIRECTORY ${LIB_DIR})
+        if(EXISTS ${LIB_DIR}/CMakeLists.txt)
+            include(${LIB_DIR}/CMakeLists.txt)
+        endif()
+    endif()
+endforeach()
+
+# Executable ###########################################################
 
 # Store all executables in bin/
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build)
@@ -35,8 +51,23 @@ file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
 # Add the executable
 add_executable(app ${SOURCES})
 
-# Tell CMake where to find your custom libraries
-# link_directories(${CMAKE_SOURCE_DIR}/lib)
-
 # Dynamically link against the math library
-target_link_libraries(app PRIVATE portaudio rt m asound pthread libremidi FFT)
+target_link_libraries(app PRIVATE 
+    portaudio 
+    rt
+    m
+    asound
+    pthread 
+    libremidi
+    FFT
+    Wavetable
+    Ramp
+    ADSR
+    Filter
+    RingBuffer
+    Delay
+    Chorus
+    Comb
+    SchroederAllpass
+    SchroederReverb
+)

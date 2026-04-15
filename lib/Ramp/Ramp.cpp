@@ -12,8 +12,9 @@ C++ Real-Time Audio Programming with Bela - Lecture 15: MIDI part 1
 
 // Ramp.cpp: a simple line segment generator
 
-#include <cmath>
 #include "Ramp.h"
+
+#include <cmath>
 
 // Constructor
 Ramp::Ramp() 
