@@ -1,17 +1,3 @@
-/*
- ____  _____ _        _    
-| __ )| ____| |      / \   
-|  _ \|  _| | |     / _ \  
-| |_) | |___| |___ / ___ \ 
-|____/|_____|_____/_/   \_\
-
-http://bela.io
-
-C++ Real-Time Audio Programming with Bela - Lecture 15: MIDI part 1
-*/
-
-// ADSR.cpp: implement the ADSR (attack-decay-sustain-release) class
-
 #include "ADSR.h"
 
 // Constructor. Set up some default parameters.

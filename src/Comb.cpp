@@ -1,5 +1,6 @@
-#include <cmath>
 #include "Comb.h"
+
+#include <cmath>
 
 Comb::Comb() : Comb(44100.0, 0.0, true) {}
 

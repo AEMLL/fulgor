@@ -1,5 +1,6 @@
-#include <cmath>
 #include "SchroederAllpass.h"
+
+#include <cmath>
 
 SchroederAllpass::SchroederAllpass() : SchroederAllpass(44100.0, 0.0, true) {}
 
